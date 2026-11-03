@@ -12,6 +12,9 @@ import io.github.nnazuna.rules.NnaRulesApp
 import io.github.nnazuna.rules.data.ActionType
 import io.github.nnazuna.rules.data.Rule
 import io.github.nnazuna.rules.data.RuleRepository
+import io.github.nnazuna.rules.extraction.ClipboardMode
+import io.github.nnazuna.rules.extraction.ExtractionMode
+import io.github.nnazuna.rules.extraction.TextExtractor
 import kotlinx.coroutines.launch
 
 data class RuleEditUiState(
@@ -21,10 +24,26 @@ data class RuleEditUiState(
     val appLabel: String = "",
     val keyword: String = "",
     val action: ActionType = ActionType.NOTIFY,
+    val clipboardMode: ClipboardMode = ClipboardMode.FULL,
+    val extractionMode: ExtractionMode = ExtractionMode.OTP,
+    val customRegex: String = "",
+    val clearClipboardSeconds: String = "0",
     val enabled: Boolean = true,
 ) {
     val isNew: Boolean get() = id == 0L
-    val canSave: Boolean get() = packageName.isNotBlank() && !isLoading
+    val usesClipboard: Boolean get() = action == ActionType.CLIPBOARD
+    val extractsCode: Boolean get() = usesClipboard && clipboardMode == ClipboardMode.EXTRACTED
+    val usesCustomRegex: Boolean get() = extractsCode && extractionMode == ExtractionMode.CUSTOM_REGEX
+    val regexError: Boolean get() = usesCustomRegex && !TextExtractor.isValidPattern(customRegex)
+    val clearClipboardValue: Int
+        get() = clearClipboardSeconds.toIntOrNull()
+            ?.coerceIn(0, MAX_CLEAR_CLIPBOARD_SECONDS)
+            ?: 0
+    val canSave: Boolean get() = packageName.isNotBlank() && !isLoading && !regexError
+
+    companion object {
+        const val MAX_CLEAR_CLIPBOARD_SECONDS = 86_400
+    }
 }
 
 class RuleEditViewModel(
@@ -49,6 +68,10 @@ class RuleEditViewModel(
                         appLabel = rule.appLabel,
                         keyword = rule.keyword.orEmpty(),
                         action = rule.action,
+                        clipboardMode = rule.clipboardMode,
+                        extractionMode = rule.extractionMode,
+                        customRegex = rule.customRegex.orEmpty(),
+                        clearClipboardSeconds = rule.clearClipboardSeconds.toString(),
                         enabled = rule.enabled,
                     )
                 }
@@ -68,6 +91,24 @@ class RuleEditViewModel(
         uiState = uiState.copy(action = action)
     }
 
+    fun onClipboardModeChange(mode: ClipboardMode) {
+        uiState = uiState.copy(clipboardMode = mode)
+    }
+
+    fun onExtractionModeChange(mode: ExtractionMode) {
+        uiState = uiState.copy(extractionMode = mode)
+    }
+
+    fun onCustomRegexChange(customRegex: String) {
+        uiState = uiState.copy(customRegex = customRegex)
+    }
+
+    fun onClearClipboardSecondsChange(seconds: String) {
+        uiState = uiState.copy(
+            clearClipboardSeconds = seconds.filter(Char::isDigit).take(5),
+        )
+    }
+
     fun onEnabledChange(enabled: Boolean) {
         uiState = uiState.copy(enabled = enabled)
     }
@@ -83,6 +124,10 @@ class RuleEditViewModel(
                     appLabel = state.appLabel,
                     keyword = state.keyword.trim().ifBlank { null },
                     action = state.action,
+                    clipboardMode = state.clipboardMode,
+                    extractionMode = state.extractionMode,
+                    customRegex = state.customRegex.trim().ifBlank { null },
+                    clearClipboardSeconds = state.clearClipboardValue,
                     enabled = state.enabled,
                 ),
             )

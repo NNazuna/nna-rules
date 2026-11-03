@@ -43,6 +43,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.data.ActionType
 import io.github.nnazuna.rules.data.Rule
+import io.github.nnazuna.rules.extraction.ClipboardMode
+import io.github.nnazuna.rules.extraction.ClipboardOutcome
+import io.github.nnazuna.rules.extraction.ExtractionMode
 import io.github.nnazuna.rules.ui.labelRes
 import io.github.nnazuna.rules.util.MatchStats
 import io.github.nnazuna.rules.util.RuleMatchStat
@@ -251,6 +254,21 @@ private fun RuleCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
+                if (rule.action == ActionType.CLIPBOARD &&
+                    rule.clipboardMode == ClipboardMode.EXTRACTED
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (rule.extractionMode == ExtractionMode.CUSTOM_REGEX) {
+                                R.string.rule_extract_custom_summary
+                            } else {
+                                R.string.rule_extract_otp_summary
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 val lastMatchedAt = stat.lastMatchedAt
                 if (stat.count > 0 && lastMatchedAt != null) {
                     Text(
@@ -263,6 +281,26 @@ private fun RuleCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                if (rule.action == ActionType.CLIPBOARD) {
+                    stat.clipboardOutcome?.let { outcome ->
+                        Text(
+                            text = stringResource(
+                                when (outcome) {
+                                    ClipboardOutcome.EXTRACTED ->
+                                        R.string.rules_last_copy_extracted
+                                    ClipboardOutcome.FULL ->
+                                        R.string.rules_last_copy_full
+                                    ClipboardOutcome.FALLBACK_NO_MATCH ->
+                                        R.string.rules_last_copy_no_match
+                                    ClipboardOutcome.FALLBACK_INVALID_PATTERN ->
+                                        R.string.rules_last_copy_invalid
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             Switch(

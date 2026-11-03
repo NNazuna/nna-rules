@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,10 +41,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.data.ActionType
+import io.github.nnazuna.rules.extraction.ClipboardMode
+import io.github.nnazuna.rules.extraction.ClipboardOutcome
+import io.github.nnazuna.rules.extraction.ExtractionMode
+import io.github.nnazuna.rules.extraction.TextExtractor
 import io.github.nnazuna.rules.ui.descriptionRes
 import io.github.nnazuna.rules.ui.labelRes
 import io.github.nnazuna.rules.util.AppInfo
@@ -65,9 +72,29 @@ fun RuleEditScreen(
     val uiState = viewModel.uiState
     var showAppPicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var sampleText by remember { mutableStateOf("") }
     var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     val captured = remember(showAppPicker) {
         if (showAppPicker) LastNotificationStore.load(context) else null
+    }
+    val lastNotification = remember { LastNotificationStore.load(context) }
+    val preview = remember(
+        sampleText,
+        uiState.action,
+        uiState.clipboardMode,
+        uiState.extractionMode,
+        uiState.customRegex,
+    ) {
+        if (sampleText.isBlank()) {
+            null
+        } else {
+            TextExtractor.resolveForClipboard(
+                text = sampleText,
+                mode = uiState.clipboardMode,
+                extractionMode = uiState.extractionMode,
+                customRegex = uiState.customRegex,
+            )
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -188,6 +215,128 @@ fun RuleEditScreen(
                             )
                         }
                     }
+                }
+            }
+
+            if (uiState.usesClipboard) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    text = stringResource(R.string.clipboard_section),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+
+                ChoiceRow(
+                    title = stringResource(R.string.clipboard_mode_full),
+                    description = stringResource(R.string.clipboard_mode_full_description),
+                    selected = uiState.clipboardMode == ClipboardMode.FULL,
+                    onSelect = { viewModel.onClipboardModeChange(ClipboardMode.FULL) },
+                )
+                ChoiceRow(
+                    title = stringResource(R.string.clipboard_mode_extracted),
+                    description = stringResource(R.string.clipboard_mode_extracted_description),
+                    selected = uiState.clipboardMode == ClipboardMode.EXTRACTED,
+                    onSelect = { viewModel.onClipboardModeChange(ClipboardMode.EXTRACTED) },
+                )
+
+                if (uiState.extractsCode) {
+                    Text(
+                        text = stringResource(R.string.clipboard_extraction_section),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    ChoiceRow(
+                        title = stringResource(R.string.clipboard_extraction_otp),
+                        description = stringResource(R.string.clipboard_extraction_otp_description),
+                        selected = uiState.extractionMode == ExtractionMode.OTP,
+                        onSelect = { viewModel.onExtractionModeChange(ExtractionMode.OTP) },
+                    )
+                    ChoiceRow(
+                        title = stringResource(R.string.clipboard_extraction_custom),
+                        description = stringResource(R.string.clipboard_extraction_custom_description),
+                        selected = uiState.extractionMode == ExtractionMode.CUSTOM_REGEX,
+                        onSelect = {
+                            viewModel.onExtractionModeChange(ExtractionMode.CUSTOM_REGEX)
+                        },
+                    )
+                    if (uiState.usesCustomRegex) {
+                        OutlinedTextField(
+                            value = uiState.customRegex,
+                            onValueChange = viewModel::onCustomRegexChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            isError = uiState.regexError,
+                            label = { Text(stringResource(R.string.clipboard_regex_label)) },
+                            supportingText = {
+                                Text(
+                                    stringResource(
+                                        if (uiState.regexError) {
+                                            R.string.clipboard_regex_error
+                                        } else {
+                                            R.string.clipboard_regex_hint
+                                        },
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = uiState.clearClipboardSeconds,
+                    onValueChange = viewModel::onClearClipboardSecondsChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text(stringResource(R.string.clipboard_clear_label)) },
+                    supportingText = { Text(stringResource(R.string.clipboard_clear_hint)) },
+                )
+
+                Text(
+                    text = stringResource(R.string.clipboard_test_section),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                OutlinedTextField(
+                    value = sampleText,
+                    onValueChange = { sampleText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 6,
+                    label = { Text(stringResource(R.string.clipboard_test_sample_label)) },
+                )
+                if (lastNotification != null) {
+                    TextButton(onClick = { sampleText = lastNotification.text }) {
+                        Text(stringResource(R.string.clipboard_test_use_last))
+                    }
+                }
+                when {
+                    preview == null -> Text(
+                        text = stringResource(R.string.clipboard_test_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    preview.outcome == ClipboardOutcome.EXTRACTED -> Text(
+                        text = stringResource(
+                            R.string.clipboard_test_preview_code,
+                            preview.text,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    preview.outcome == ClipboardOutcome.FULL -> Text(
+                        text = stringResource(R.string.clipboard_test_preview_full),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    preview.outcome == ClipboardOutcome.FALLBACK_INVALID_PATTERN -> Text(
+                        text = stringResource(R.string.clipboard_test_preview_invalid),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    else -> Text(
+                        text = stringResource(R.string.clipboard_test_preview_no_match),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
@@ -355,4 +504,32 @@ private fun AppPickerDialog(
             }
         },
     )
+}
+
+@Composable
+private fun ChoiceRow(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onSelect)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

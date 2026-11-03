@@ -50,6 +50,37 @@
     <string name="action_clipboard">Copy to clipboard</string>
     <string name="action_clipboard_description">Copy the notification text so you can paste it later.</string>
 
+    <string name="clipboard_section">Clipboard</string>
+    <string name="clipboard_mode_full">Copy full text</string>
+    <string name="clipboard_mode_full_description">Copy the whole notification text.</string>
+    <string name="clipboard_mode_extracted">Copy only the extracted part</string>
+    <string name="clipboard_mode_extracted_description">Find a code in the notification and copy only that part.</string>
+    <string name="clipboard_extraction_section">Extraction</string>
+    <string name="clipboard_extraction_otp">OTP / code</string>
+    <string name="clipboard_extraction_otp_description">First standalone 4–8 character code that contains a digit.</string>
+    <string name="clipboard_extraction_custom">Custom regex</string>
+    <string name="clipboard_extraction_custom_description">Use the first capture group, or the whole match when there is no group.</string>
+    <string name="clipboard_regex_label">Regular expression</string>
+    <string name="clipboard_regex_hint">The first capture group is copied. Without a group, the whole match is used.</string>
+    <string name="clipboard_regex_error">This regular expression is not valid.</string>
+    <string name="clipboard_clear_label">Clear clipboard after (seconds)</string>
+    <string name="clipboard_clear_hint">0 = never. Clipboard checks are blocked in the background, so a later copy may also be cleared.</string>
+    <string name="clipboard_test_section">Test extraction</string>
+    <string name="clipboard_test_sample_label">Sample notification text</string>
+    <string name="clipboard_test_use_last">Use last notification</string>
+    <string name="clipboard_test_empty">Paste a sample to preview what would be copied.</string>
+    <string name="clipboard_test_preview_code">Would copy: %1$s</string>
+    <string name="clipboard_test_preview_full">Would copy the full text.</string>
+    <string name="clipboard_test_preview_no_match">No code found — the full text would be copied.</string>
+    <string name="clipboard_test_preview_invalid">Invalid regular expression — the full text would be copied.</string>
+
+    <string name="rule_extract_otp_summary">Extract: OTP / code</string>
+    <string name="rule_extract_custom_summary">Extract: custom regex</string>
+    <string name="rules_last_copy_extracted">Last copy: extracted code</string>
+    <string name="rules_last_copy_full">Last copy: full text</string>
+    <string name="rules_last_copy_no_match">Last copy: no code found, full text copied</string>
+    <string name="rules_last_copy_invalid">Last copy: invalid regex, full text copied</string>
+
     <string name="rule_notification_body">%1$s: %2$s</string>
     <string name="channel_silent_name">Rule notifications</string>
     <string name="channel_silent_description">Silent notifications created by your rules</string>
