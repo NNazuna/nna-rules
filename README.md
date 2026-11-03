@@ -9,7 +9,7 @@ Everything stays on the device. The app has no internet permission.
 
 ## Status
 
-Milestones 0-2: skeleton, onboarding, local rule storage and rule editing.
+Milestones 0-3: skeleton, onboarding, local rule storage, rule editing, notification listening and rule matching.
 
 ## Build
 

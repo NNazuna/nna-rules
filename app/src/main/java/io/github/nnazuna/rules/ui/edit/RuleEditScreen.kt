@@ -47,6 +47,8 @@ import io.github.nnazuna.rules.data.ActionType
 import io.github.nnazuna.rules.ui.descriptionRes
 import io.github.nnazuna.rules.ui.labelRes
 import io.github.nnazuna.rules.util.AppInfo
+import io.github.nnazuna.rules.util.CapturedNotification
+import io.github.nnazuna.rules.util.LastNotificationStore
 import io.github.nnazuna.rules.util.loadLaunchableApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -64,6 +66,9 @@ fun RuleEditScreen(
     var showAppPicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    val captured = remember(showAppPicker) {
+        if (showAppPicker) LastNotificationStore.load(context) else null
+    }
 
     LaunchedEffect(Unit) {
         apps = withContext(Dispatchers.IO) { loadLaunchableApps(context) }
@@ -227,6 +232,7 @@ fun RuleEditScreen(
     if (showAppPicker) {
         AppPickerDialog(
             apps = apps,
+            captured = captured,
             onDismiss = { showAppPicker = false },
             onSelect = { app ->
                 viewModel.onAppSelected(app.packageName, app.label)
@@ -265,6 +271,7 @@ fun RuleEditScreen(
 @Composable
 private fun AppPickerDialog(
     apps: List<AppInfo>,
+    captured: CapturedNotification?,
     onDismiss: () -> Unit,
     onSelect: (AppInfo) -> Unit,
 ) {
@@ -285,6 +292,26 @@ private fun AppPickerDialog(
         title = { Text(stringResource(R.string.rule_choose_app)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (captured != null) {
+                    TextButton(
+                        onClick = {
+                            onSelect(
+                                AppInfo(
+                                    packageName = captured.packageName,
+                                    label = captured.appLabel,
+                                ),
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.rule_use_last_notification,
+                                captured.appLabel,
+                            ),
+                        )
+                    }
+                }
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },

@@ -1,9 +1,9 @@
 package io.github.nnazuna.rules.ui.rules
 
+import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickableimport androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -38,6 +38,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.data.Rule
 import io.github.nnazuna.rules.ui.labelRes
+import io.github.nnazuna.rules.util.MatchStats
+import io.github.nnazuna.rules.util.RuleMatchStat
 import io.github.nnazuna.rules.util.hasNotificationAccess
 import io.github.nnazuna.rules.util.notificationAccessSettingsIntent
 
@@ -51,6 +53,10 @@ fun RuleListScreen(
 ) {
     val context = LocalContext.current
     val rules by viewModel.rules.collectAsState()
+    val statsRevision by MatchStats.revision.collectAsState()
+    val stats = remember(rules, statsRevision) {
+        rules.associate { it.id to MatchStats.statFor(context, it.id) }
+    }
     var granted by remember { mutableStateOf(hasNotificationAccess(context)) }
 
     val settingsLauncher = rememberLauncherForActivityResult(
@@ -136,6 +142,7 @@ fun RuleListScreen(
                 items(rules, key = { it.id }) { rule ->
                     RuleCard(
                         rule = rule,
+                        stat = stats[rule.id] ?: RuleMatchStat.Empty,
                         onToggle = { enabled -> viewModel.setEnabled(rule, enabled) },
                         onEdit = { onEditRule(rule.id) },
                     )
@@ -148,6 +155,7 @@ fun RuleListScreen(
 @Composable
 private fun RuleCard(
     rule: Rule,
+    stat: RuleMatchStat,
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
@@ -185,6 +193,18 @@ private fun RuleCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
+                val lastMatchedAt = stat.lastMatchedAt
+                if (stat.count > 0 && lastMatchedAt != null) {
+                    Text(
+                        text = stringResource(
+                            R.string.rules_match_stats,
+                            stat.count,
+                            DateUtils.getRelativeTimeSpanString(lastMatchedAt).toString(),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Switch(
                 checked = rule.enabled,

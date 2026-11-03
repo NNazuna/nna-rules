@@ -20,6 +20,7 @@
     <string name="rules_new">New rule</string>
     <string name="rule_any_notification">Any notification</string>
     <string name="rule_keyword_summary">Keyword: %1$s</string>
+    <string name="rules_match_stats">Matched %1$d times · last %2$s</string>
 
     <string name="rule_add_title">New rule</string>
     <string name="rule_edit_title">Edit rule</string>
@@ -27,6 +28,7 @@
     <string name="rule_choose_app">Choose an app</string>
     <string name="rule_app_search">Search apps</string>
     <string name="rule_no_apps">No apps found.</string>
+    <string name="rule_use_last_notification">Use %1$s (last notification)</string>
     <string name="rule_keyword_label">Keyword (optional)</string>
     <string name="rule_keyword_hint">Leave empty to match any notification from this app.</string>
     <string name="rule_action_section">Action</string>
