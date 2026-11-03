@@ -1,6 +1,7 @@
 package io.github.nnazuna.rules.ui.edit
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,14 +19,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,12 +50,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
-import io.github.nnazuna.rules.ui.ActionType
 import io.github.nnazuna.rules.core.extraction.ClipboardMode
 import io.github.nnazuna.rules.core.extraction.ClipboardOutcome
 import io.github.nnazuna.rules.core.extraction.ExtractionMode
 import io.github.nnazuna.rules.core.extraction.TextExtractor
-
+import io.github.nnazuna.rules.core.trigger.NotificationTrigger
+import io.github.nnazuna.rules.core.trigger.PowerTrigger
+import io.github.nnazuna.rules.core.trigger.TimeTrigger
+import io.github.nnazuna.rules.core.trigger.WifiTrigger
+import io.github.nnazuna.rules.ui.ActionType
 import io.github.nnazuna.rules.util.AppInfo
 import io.github.nnazuna.rules.util.CapturedNotification
 import io.github.nnazuna.rules.util.LastNotificationStore
@@ -70,30 +77,28 @@ fun RuleEditScreen(
     val context = LocalContext.current
     val uiState = viewModel.uiState
     var showAppPicker by remember { mutableStateOf(false) }
+    var showPresetsDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var sampleText by remember { mutableStateOf("") }
     var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
-    val captured = remember(showAppPicker) {
-        if (showAppPicker) LastNotificationStore.load(context) else null
-    }
+
     val lastNotification = remember { LastNotificationStore.load(context) }
     val preview = remember(
         sampleText,
-        uiState.action,
+        uiState.actionType,
         uiState.clipboardMode,
         uiState.extractionMode,
         uiState.customRegex,
     ) {
-        if (sampleText.isBlank()) {
-            null
-        } else {
-            TextExtractor.resolveForClipboard(
-                text = sampleText,
-                mode = uiState.clipboardMode,
-                extractionMode = uiState.extractionMode,
-                customRegex = uiState.customRegex,
-            )
-        }
+        if (!uiState.usesClipboard) return@remember null
+        val sample = sampleText
+        if (sample.isBlank()) return@remember null
+        TextExtractor.resolveForClipboard(
+            text = sample,
+            mode = uiState.clipboardMode,
+            extractionMode = uiState.extractionMode,
+            customRegex = uiState.customRegex.takeIf { uiState.usesCustomRegex },
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -147,38 +152,142 @@ fun RuleEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (uiState.isNew) {
+                OutlinedButton(
+                    onClick = { showPresetsDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.rule_presets_btn))
+                }
+            }
+
             Text(
                 text = stringResource(R.string.rule_trigger_section),
                 style = MaterialTheme.typography.titleSmall,
             )
 
-            OutlinedButton(
-                onClick = { showAppPicker = true },
-                modifier = Modifier.fillMaxWidth(),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    text = uiState.appLabel.ifBlank {
-                        stringResource(R.string.rule_choose_app)
-                    },
-                )
+                listOf(
+                    NotificationTrigger.TYPE to stringResource(R.string.trigger_notification),
+                    TimeTrigger.TYPE to stringResource(R.string.trigger_time),
+                    WifiTrigger.TYPE to stringResource(R.string.trigger_wifi),
+                    PowerTrigger.TYPE to stringResource(R.string.trigger_power),
+                ).forEach { (type, label) ->
+                    FilterChip(
+                        selected = uiState.triggerType == type,
+                        onClick = { viewModel.updateTriggerType(type) },
+                        label = { Text(label) },
+                    )
+                }
             }
 
-            if (uiState.packageName.isNotBlank()) {
-                Text(
-                    text = uiState.packageName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            when (uiState.triggerType) {
+                NotificationTrigger.TYPE -> {
+                    OutlinedButton(
+                        onClick = { showAppPicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = uiState.appLabel.ifBlank {
+                                stringResource(R.string.rule_choose_app)
+                            },
+                        )
+                    }
 
-            OutlinedTextField(
-                value = uiState.keyword,
-                onValueChange = viewModel::onKeywordChange,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(stringResource(R.string.rule_keyword_label)) },
-                supportingText = { Text(stringResource(R.string.rule_keyword_hint)) },
-            )
+                    if (uiState.triggerPackage.isNotBlank()) {
+                        Text(
+                            text = uiState.triggerPackage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = uiState.keyword,
+                        onValueChange = viewModel::onKeywordChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.rule_keyword_label)) },
+                        supportingText = { Text(stringResource(R.string.rule_keyword_hint)) },
+                    )
+                }
+                TimeTrigger.TYPE -> {
+                    OutlinedTextField(
+                        value = uiState.appLabel,
+                        onValueChange = viewModel::onAppLabelChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.rule_name_label)) },
+                        supportingText = { Text(stringResource(R.string.rule_name_hint)) },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = uiState.triggerHour.toString(),
+                            onValueChange = { it.toIntOrNull()?.let(viewModel::onTriggerHourChange) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            label = { Text(stringResource(R.string.trigger_hour_label)) },
+                        )
+                        OutlinedTextField(
+                            value = uiState.triggerMinute.toString(),
+                            onValueChange = { it.toIntOrNull()?.let(viewModel::onTriggerMinuteChange) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            label = { Text(stringResource(R.string.trigger_minute_label)) },
+                        )
+                    }
+                }
+                WifiTrigger.TYPE -> {
+                    OutlinedTextField(
+                        value = uiState.appLabel,
+                        onValueChange = viewModel::onAppLabelChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.rule_name_label)) },
+                        supportingText = { Text(stringResource(R.string.rule_name_hint)) },
+                    )
+                    OutlinedTextField(
+                        value = uiState.triggerSsid,
+                        onValueChange = viewModel::onTriggerSsidChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.trigger_ssid_label)) },
+                        supportingText = { Text(stringResource(R.string.trigger_ssid_hint)) },
+                    )
+                }
+                PowerTrigger.TYPE -> {
+                    OutlinedTextField(
+                        value = uiState.appLabel,
+                        onValueChange = viewModel::onAppLabelChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.rule_name_label)) },
+                        supportingText = { Text(stringResource(R.string.rule_name_hint)) },
+                    )
+                    ChoiceRow(
+                        title = stringResource(R.string.trigger_power_connected),
+                        description = "",
+                        selected = uiState.triggerConnected,
+                        onSelect = { viewModel.onTriggerConnectedChange(true) },
+                    )
+                    ChoiceRow(
+                        title = stringResource(R.string.trigger_power_disconnected),
+                        description = "",
+                        selected = !uiState.triggerConnected,
+                        onSelect = { viewModel.onTriggerConnectedChange(false) },
+                    )
+                }
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
@@ -193,12 +302,12 @@ fun RuleEditScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { viewModel.onActionChange(action) }
+                            .clickable { viewModel.updateActionType(action) }
                             .padding(vertical = 8.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(
-                            selected = uiState.action == action,
+                            selected = uiState.actionType == action,
                             onClick = null,
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -339,6 +448,123 @@ fun RuleEditScreen(
                 }
             }
 
+            if (uiState.actionType == ActionType.VOLUME) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    text = stringResource(R.string.volume_stream_label),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf("RING", "MUSIC", "ALARM", "NOTIFICATION").forEach { stream ->
+                        FilterChip(
+                            selected = uiState.volumeStream == stream,
+                            onClick = { viewModel.onVolumeStreamChange(stream) },
+                            label = { Text(stream) },
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.volume_level_label, uiState.volumeLevel),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = uiState.volumeLevel.toFloat(),
+                    onValueChange = { viewModel.onVolumeLevelChange(it.toInt()) },
+                    valueRange = 0f..100f,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (uiState.actionType == ActionType.BRIGHTNESS) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                val pct = (uiState.brightnessLevel * 100) / 255
+                Text(
+                    text = stringResource(R.string.brightness_level_label, uiState.brightnessLevel, pct),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = uiState.brightnessLevel.toFloat(),
+                    onValueChange = { viewModel.onBrightnessLevelChange(it.toInt()) },
+                    valueRange = 0f..255f,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (uiState.actionType == ActionType.DND) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    text = stringResource(R.string.dnd_mode_label),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                listOf(
+                    "OFF" to stringResource(R.string.dnd_mode_off),
+                    "PRIORITY" to stringResource(R.string.dnd_mode_priority),
+                    "ALARMS" to stringResource(R.string.dnd_mode_alarms),
+                    "SILENT" to stringResource(R.string.dnd_mode_silent),
+                ).forEach { (mode, label) ->
+                    ChoiceRow(
+                        title = label,
+                        description = "",
+                        selected = uiState.dndMode == mode,
+                        onSelect = { viewModel.onDndModeChange(mode) },
+                    )
+                }
+            }
+
+            if (uiState.actionType == ActionType.CSV) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                OutlinedTextField(
+                    value = uiState.csvPath,
+                    onValueChange = viewModel::onCsvPathChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.csv_path_label)) },
+                    supportingText = { Text(stringResource(R.string.csv_path_hint)) },
+                )
+                OutlinedTextField(
+                    value = uiState.csvPattern,
+                    onValueChange = viewModel::onCsvPatternChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.csv_pattern_label)) },
+                    supportingText = { Text(stringResource(R.string.csv_pattern_hint)) },
+                )
+            }
+
+            if (uiState.actionType == ActionType.DIGEST) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    text = stringResource(R.string.digest_schedule_label),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedTextField(
+                        value = uiState.digestHour.toString(),
+                        onValueChange = { it.toIntOrNull()?.let(viewModel::onDigestHourChange) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        label = { Text(stringResource(R.string.trigger_hour_label)) },
+                    )
+                    OutlinedTextField(
+                        value = uiState.digestMinute.toString(),
+                        onValueChange = { it.toIntOrNull()?.let(viewModel::onDigestMinuteChange) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        label = { Text(stringResource(R.string.trigger_minute_label)) },
+                    )
+                }
+            }
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             Row(
@@ -364,6 +590,8 @@ fun RuleEditScreen(
             }
 
             if (!uiState.isNew) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
                 TextButton(
                     onClick = { showDeleteConfirm = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -380,12 +608,16 @@ fun RuleEditScreen(
     if (showAppPicker) {
         AppPickerDialog(
             apps = apps,
-            captured = captured,
-            onDismiss = { showAppPicker = false },
+            lastNotification = lastNotification,
             onSelect = { app ->
                 viewModel.onAppSelected(app.packageName, app.label)
                 showAppPicker = false
             },
+            onSelectLastNotification = { captured ->
+                viewModel.onAppSelected(captured.packageName, captured.appLabel)
+                showAppPicker = false
+            },
+            onDismiss = { showAppPicker = false },
         )
     }
 
@@ -414,24 +646,68 @@ fun RuleEditScreen(
             },
         )
     }
+
+    if (showPresetsDialog) {
+        AlertDialog(
+            onDismissRequest = { showPresetsDialog = false },
+            title = { Text(stringResource(R.string.rule_presets_title)) },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val presets = listOf(
+                        RulePreset.OTP_COPY to (R.string.preset_otp_title to R.string.preset_otp_desc),
+                        RulePreset.EXPENSE_LOGGER to (R.string.preset_expense_title to R.string.preset_expense_desc),
+                        RulePreset.CHARGER_QUIET to (R.string.preset_charger_title to R.string.preset_charger_desc),
+                        RulePreset.SLEEP_SCHEDULE to (R.string.preset_sleep_title to R.string.preset_sleep_desc),
+                        RulePreset.WORK_WIFI to (R.string.preset_wifi_title to R.string.preset_wifi_desc),
+                    )
+                    items(presets) { (preset, texts) ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.applyPreset(preset)
+                                    showPresetsDialog = false
+                                },
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = stringResource(texts.first),
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                Text(
+                                    text = stringResource(texts.second),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPresetsDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
 private fun AppPickerDialog(
     apps: List<AppInfo>,
-    captured: CapturedNotification?,
-    onDismiss: () -> Unit,
+    lastNotification: CapturedNotification?,
     onSelect: (AppInfo) -> Unit,
+    onSelectLastNotification: (CapturedNotification) -> Unit,
+    onDismiss: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    val filtered = remember(query, apps) {
-        if (query.isBlank()) {
-            apps
-        } else {
-            apps.filter {
-                it.label.contains(query, ignoreCase = true) ||
-                    it.packageName.contains(query, ignoreCase = true)
-            }
+    val filtered = remember(apps, query) {
+        if (query.isBlank()) apps else apps.filter {
+            it.label.contains(query, ignoreCase = true) || it.packageName.contains(query, ignoreCase = true)
         }
     }
 
@@ -439,23 +715,19 @@ private fun AppPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rule_choose_app)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (captured != null) {
-                    TextButton(
-                        onClick = {
-                            onSelect(
-                                AppInfo(
-                                    packageName = captured.packageName,
-                                    label = captured.appLabel,
-                                ),
-                            )
-                        },
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (lastNotification != null) {
+                    OutlinedButton(
+                        onClick = { onSelectLastNotification(lastNotification) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             stringResource(
                                 R.string.rule_use_last_notification,
-                                captured.appLabel,
+                                lastNotification.appLabel,
                             ),
                         )
                     }
@@ -467,30 +739,41 @@ private fun AppPickerDialog(
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.rule_app_search)) },
                 )
-                if (filtered.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.rule_no_apps),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp),
+                ) {
+                    if (filtered.isEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.rule_no_apps),
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
                         items(filtered, key = { it.packageName }) { app ->
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
                                     .clickable { onSelect(app) }
-                                    .padding(vertical = 10.dp),
+                                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(
-                                    text = app.label,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                                Text(
-                                    text = app.packageName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                Column {
+                                    Text(
+                                        text = app.label,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    Text(
+                                        text = app.packageName,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
                     }
@@ -524,11 +807,13 @@ private fun ChoiceRow(
         Spacer(modifier = Modifier.width(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (description.isNotBlank()) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

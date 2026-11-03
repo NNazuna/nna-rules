@@ -1,5 +1,6 @@
 package io.github.nnazuna.rules.core.action
 
+import io.github.nnazuna.rules.core.event.NotificationEvent
 import io.github.nnazuna.rules.core.event.RuleEvent
 import io.github.nnazuna.rules.core.model.RuleDefinition
 import kotlinx.serialization.json.JsonObject
@@ -16,12 +17,13 @@ data class CsvAppendAction(
     override val type: String get() = TYPE
 
     override fun execute(event: RuleEvent, rule: RuleDefinition, context: ActionContext): ActionReport {
+        val textToSearch = (event as? NotificationEvent)?.searchableText ?: event.toString()
         val extractedValue = if (extractionPattern != null) {
             val regex = Regex(extractionPattern)
-            regex.find(event.toString())?.groupValues?.getOrNull(1) 
-                ?: regex.find(event.toString())?.value
+            regex.find(textToSearch)?.groupValues?.getOrNull(1) 
+                ?: regex.find(textToSearch)?.value
         } else {
-            event.toString()
+            textToSearch
         }
 
         if (extractedValue.isNullOrBlank()) return ActionReport()

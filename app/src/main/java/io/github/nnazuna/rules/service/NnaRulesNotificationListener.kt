@@ -10,6 +10,7 @@ import io.github.nnazuna.rules.action.AndroidActionContext
 import io.github.nnazuna.rules.core.engine.RuleEngine
 import io.github.nnazuna.rules.core.event.NotificationEvent
 import io.github.nnazuna.rules.util.CapturedNotification
+import io.github.nnazuna.rules.util.ExecutionHistoryStore
 import io.github.nnazuna.rules.util.LastNotificationStore
 import io.github.nnazuna.rules.util.MatchStats
 import kotlinx.coroutines.CoroutineScope
@@ -78,6 +79,13 @@ class NnaRulesNotificationListener : NotificationListenerService() {
                     executions.map { it.rule.id },
                     clipboardOutcomes,
                 )
+                executions.forEach { exec ->
+                    ExecutionHistoryStore.record(
+                        this@NnaRulesNotificationListener,
+                        exec.rule.appLabel,
+                        "Matched: ${content.title.ifBlank { content.text.take(40) }}",
+                    )
+                }
             }
         }
     }

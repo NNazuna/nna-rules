@@ -12,6 +12,9 @@ interface RuleDao {
     @Query("SELECT * FROM rules ORDER BY created_at DESC")
     fun observeAll(): Flow<List<RuleEntity>>
 
+    @Query("SELECT * FROM rules ORDER BY created_at DESC")
+    suspend fun getAll(): List<RuleEntity>
+
     @Query("SELECT * FROM rules WHERE enabled = 1")
     suspend fun getEnabled(): List<RuleEntity>
 
@@ -20,6 +23,9 @@ interface RuleDao {
 
     @Insert
     suspend fun insert(rule: RuleEntity): Long
+
+    @Insert
+    suspend fun insertAll(rules: List<RuleEntity>): List<Long>
 
     @Update
     suspend fun update(rule: RuleEntity)

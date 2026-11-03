@@ -29,6 +29,10 @@ class RuleListViewModel(private val repository: RuleRepository) : ViewModel() {
         viewModelScope.launch { repository.delete(definition) }
     }
 
+    suspend fun exportRules(): String = repository.exportRulesJson()
+
+    suspend fun importRules(json: String): Result<Int> = repository.importRulesJson(json)
+
     companion object {
         val Factory = viewModelFactory {
             initializer {

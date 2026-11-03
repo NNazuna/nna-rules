@@ -103,4 +103,37 @@ class SituationActionsTest {
         val decoded = plugin.decode(encoded)
         assertEquals(action, decoded)
     }
+
+    @Test
+    fun csvAppendAction_extractsFromNotificationEvent() {
+        val action = CsvAppendAction(
+            filePath = "expenses.csv",
+            extractionPattern = "Rp([0-9.]+)",
+            columns = listOf("amount"),
+        )
+        var appendedValue = ""
+        val mockContext = object : ActionContext {
+            override fun postNotification(appLabel: String, text: String, withSound: Boolean) {}
+            override fun copyToClipboard(text: String, clearAfterSeconds: Int) {}
+            override fun setVolume(level: Int, streamType: String) {}
+            override fun setBrightness(level: Int) {}
+            override fun setDndMode(mode: String) {}
+            override fun appendToCsv(filePath: String, columns: List<String>, value: String) {
+                appendedValue = value
+            }
+            override fun queueNotification(ruleId: Long, packageName: String, appLabel: String, text: String) {}
+        }
+        val event = io.github.nnazuna.rules.core.event.NotificationEvent(
+            packageName = "com.bank",
+            appLabel = "Bank BCA",
+            title = "Transfer Masuk",
+            text = "Dana masuk Rp50.000 dari John",
+        )
+        val rule = io.github.nnazuna.rules.core.model.RuleDefinition(
+            appLabel = "Bank BCA",
+            trigger = io.github.nnazuna.rules.core.trigger.NotificationTrigger("com.bank"),
+        )
+        action.execute(event, rule, mockContext)
+        assertEquals("50.000", appendedValue)
+    }
 }

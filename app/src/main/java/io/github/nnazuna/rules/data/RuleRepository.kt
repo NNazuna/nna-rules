@@ -36,6 +36,43 @@ class RuleRepository(
         dao.delete(definition.toEntity(codec))
     }
 
+    suspend fun exportRulesJson(): String {
+        val entities = dao.getAll()
+        val exported = entities.map { entity ->
+            ExportedRule(
+                appLabel = entity.appLabel,
+                enabled = entity.enabled,
+                triggerType = entity.triggerType,
+                triggerPayload = entity.triggerPayload,
+                conditionsPayload = entity.conditionsPayload,
+                actionsPayload = entity.actionsPayload,
+            )
+        }
+        val json = kotlinx.serialization.json.Json { prettyPrint = true }
+        return json.encodeToString(kotlinx.serialization.builtins.ListSerializer(ExportedRule.serializer()), exported)
+    }
+
+    suspend fun importRulesJson(jsonString: String): Result<Int> = runCatching {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val exported = json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(ExportedRule.serializer()), jsonString)
+        val entities = exported.map {
+            RuleEntity(
+                id = 0,
+                appLabel = it.appLabel,
+                enabled = it.enabled,
+                createdAt = System.currentTimeMillis(),
+                triggerType = it.triggerType,
+                triggerPayload = it.triggerPayload,
+                conditionsPayload = it.conditionsPayload,
+                actionsPayload = it.actionsPayload,
+            )
+        }
+        if (entities.isNotEmpty()) {
+            dao.insertAll(entities)
+        }
+        entities.size
+    }
+
     private companion object {
         const val TAG = "RuleRepository"
     }

@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 import io.github.nnazuna.rules.core.codec.RuleCodec
 import io.github.nnazuna.rules.core.codec.RulePayload
 import io.github.nnazuna.rules.core.model.RuleDefinition
+import kotlinx.serialization.Serializable
 
 @Entity(tableName = "rules")
 data class RuleEntity(
@@ -45,3 +46,13 @@ fun RuleDefinition.toEntity(codec: RuleCodec): RuleEntity {
         actionsPayload = payload.actionsPayload,
     )
 }
+
+@Serializable
+data class ExportedRule(
+    val appLabel: String,
+    val enabled: Boolean = true,
+    val triggerType: String,
+    val triggerPayload: String,
+    val conditionsPayload: String,
+    val actionsPayload: String,
+)
