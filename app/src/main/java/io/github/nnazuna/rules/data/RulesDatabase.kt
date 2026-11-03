@@ -4,10 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
 
-@Database(entities = [Rule::class], version = 2, exportSchema = true)
-@TypeConverters(Converters::class)
+@Database(entities = [RuleEntity::class], version = 3, exportSchema = true)
 abstract class RulesDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
 
@@ -22,7 +20,7 @@ abstract class RulesDatabase : RoomDatabase() {
                     RulesDatabase::class.java,
                     "nna_rules.db",
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { instance = it }
             }
