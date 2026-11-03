@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [Rule::class], version = 1, exportSchema = false)
+@Database(entities = [Rule::class], version = 2, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class RulesDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
@@ -21,7 +21,10 @@ abstract class RulesDatabase : RoomDatabase() {
                     context.applicationContext,
                     RulesDatabase::class.java,
                     "nna_rules.db",
-                ).build().also { instance = it }
+                )
+                    .addMigrations(MIGRATION_1_2)
+                    .build()
+                    .also { instance = it }
             }
     }
 }
