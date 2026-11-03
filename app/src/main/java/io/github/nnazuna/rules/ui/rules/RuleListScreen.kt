@@ -2,21 +2,28 @@ package io.github.nnazuna.rules.ui.rules
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,16 +34,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
+import io.github.nnazuna.rules.data.Rule
+import io.github.nnazuna.rules.ui.labelRes
 import io.github.nnazuna.rules.util.hasNotificationAccess
 import io.github.nnazuna.rules.util.notificationAccessSettingsIntent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RuleListScreen(
+    onCreateRule: () -> Unit,
+    onEditRule: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: RuleListViewModel = viewModel(factory = RuleListViewModel.Factory),
 ) {
     val context = LocalContext.current
+    val rules by viewModel.rules.collectAsState()
     var granted by remember { mutableStateOf(hasNotificationAccess(context)) }
 
     val settingsLauncher = rememberLauncherForActivityResult(
@@ -50,62 +64,132 @@ fun RuleListScreen(
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.rules_title)) })
         },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(onClick = onCreateRule) {
+                Text(stringResource(R.string.rules_new))
+            }
+        },
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (!granted) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.rules_access_warning),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
+                item(key = "access_warning") {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            TextButton(
-                                onClick = {
-                                    settingsLauncher.launch(notificationAccessSettingsIntent())
-                                },
+                            Text(
+                                text = stringResource(R.string.rules_access_warning),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
                             ) {
-                                Text(stringResource(R.string.rules_open_settings))
+                                TextButton(
+                                    onClick = {
+                                        settingsLauncher.launch(
+                                            notificationAccessSettingsIntent(),
+                                        )
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.rules_open_settings))
+                                }
                             }
                         }
                     }
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.rules_empty_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.rules_empty_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
+            if (rules.isEmpty()) {
+                item(key = "empty") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 64.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.rules_empty_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = stringResource(R.string.rules_empty_body),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(rules, key = { it.id }) { rule ->
+                    RuleCard(
+                        rule = rule,
+                        onToggle = { enabled -> viewModel.setEnabled(rule, enabled) },
+                        onEdit = { onEditRule(rule.id) },
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RuleCard(
+    rule: Rule,
+    onToggle: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEdit),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = rule.appLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = rule.keyword
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { stringResource(R.string.rule_keyword_summary, it) }
+                        ?: stringResource(R.string.rule_any_notification),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(rule.action.labelRes()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Switch(
+                checked = rule.enabled,
+                onCheckedChange = onToggle,
+            )
         }
     }
 }
