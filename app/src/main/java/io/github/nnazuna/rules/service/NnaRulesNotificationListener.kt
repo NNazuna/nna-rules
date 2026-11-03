@@ -6,6 +6,7 @@ import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import io.github.nnazuna.rules.NnaRulesApp
+import io.github.nnazuna.rules.action.ActionExecutor
 import io.github.nnazuna.rules.util.CapturedNotification
 import io.github.nnazuna.rules.util.LastNotificationStore
 import io.github.nnazuna.rules.util.MatchStats
@@ -14,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class NnaRulesNotificationListener : NotificationListenerService() {
 
@@ -40,6 +42,15 @@ class NnaRulesNotificationListener : NotificationListenerService() {
             val matches = repository.getEnabledRules()
                 .filter { RuleMatcher.matches(it, notification.packageName, content) }
             if (matches.isNotEmpty()) {
+                withContext(Dispatchers.Main.immediate) {
+                    matches.forEach { rule ->
+                        ActionExecutor.execute(
+                            this@NnaRulesNotificationListener,
+                            rule,
+                            content,
+                        )
+                    }
+                }
                 MatchStats.record(this@NnaRulesNotificationListener, matches.map { it.id })
             }
         }

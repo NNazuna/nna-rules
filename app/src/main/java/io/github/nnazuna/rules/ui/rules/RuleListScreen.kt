@@ -1,5 +1,7 @@
 package io.github.nnazuna.rules.ui.rules
 
+import android.Manifest
+import android.os.Build
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,14 +36,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
+import io.github.nnazuna.rules.data.ActionType
 import io.github.nnazuna.rules.data.Rule
 import io.github.nnazuna.rules.ui.labelRes
 import io.github.nnazuna.rules.util.MatchStats
 import io.github.nnazuna.rules.util.RuleMatchStat
 import io.github.nnazuna.rules.util.hasNotificationAccess
 import io.github.nnazuna.rules.util.notificationAccessSettingsIntent
+import io.github.nnazuna.rules.util.openAppNotificationSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,11 +63,25 @@ fun RuleListScreen(
         rules.associate { it.id to MatchStats.statFor(context, it.id) }
     }
     var granted by remember { mutableStateOf(hasNotificationAccess(context)) }
+    var notificationsEnabled by remember {
+        mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+    var notificationPermissionRequested by remember { mutableStateOf(false) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
 
     val settingsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
         granted = hasNotificationAccess(context)
+    }
+
+    val needsNotifications = rules.any {
+        it.action == ActionType.NOTIFY || it.action == ActionType.SOUND
     }
 
     Scaffold(
@@ -83,6 +102,43 @@ fun RuleListScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (needsNotifications && !notificationsEnabled) {
+                item(key = "notifications_warning") {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.rules_notifications_warning),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                            !notificationPermissionRequested
+                                        ) {
+                                            notificationPermissionRequested = true
+                                            notificationPermissionLauncher.launch(
+                                                Manifest.permission.POST_NOTIFICATIONS,
+                                            )
+                                        } else {
+                                            openAppNotificationSettings(context)
+                                        }
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.rules_allow_notifications))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if (!granted) {
                 item(key = "access_warning") {
                     Card(modifier = Modifier.fillMaxWidth()) {

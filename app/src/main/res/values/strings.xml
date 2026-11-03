@@ -17,6 +17,8 @@
     <string name="rules_open_settings">Open settings</string>
     <string name="rules_empty_title">No rules yet</string>
     <string name="rules_empty_body">Tap New rule to create your first automation.</string>
+    <string name="rules_notifications_warning">Notifications are turned off for NNA Rules, so notification and sound actions cannot run.</string>
+    <string name="rules_allow_notifications">Allow</string>
     <string name="rules_new">New rule</string>
     <string name="rule_any_notification">Any notification</string>
     <string name="rule_keyword_summary">Keyword: %1$s</string>
@@ -44,6 +46,12 @@
     <string name="action_sound_description">Post a notification that plays a sound.</string>
     <string name="action_clipboard">Copy to clipboard</string>
     <string name="action_clipboard_description">Copy the notification text so you can paste it later.</string>
+
+    <string name="rule_notification_body">%1$s: %2$s</string>
+    <string name="channel_silent_name">Rule notifications</string>
+    <string name="channel_silent_description">Silent notifications created by your rules</string>
+    <string name="channel_sound_name">Rule alerts</string>
+    <string name="channel_sound_description">Rule notifications that play a sound</string>
 
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
