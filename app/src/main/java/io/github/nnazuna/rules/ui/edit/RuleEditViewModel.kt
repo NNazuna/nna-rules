@@ -9,12 +9,17 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.nnazuna.rules.NnaRulesApp
-import io.github.nnazuna.rules.data.ActionType
-import io.github.nnazuna.rules.data.Rule
-import io.github.nnazuna.rules.data.RuleRepository
+import io.github.nnazuna.rules.ui.ActionType
+import io.github.nnazuna.rules.core.action.ClipboardAction
+import io.github.nnazuna.rules.core.action.NotifyAction
+import io.github.nnazuna.rules.core.action.SoundAction
+import io.github.nnazuna.rules.core.condition.KeywordCondition
 import io.github.nnazuna.rules.core.extraction.ClipboardMode
 import io.github.nnazuna.rules.core.extraction.ExtractionMode
 import io.github.nnazuna.rules.core.extraction.TextExtractor
+import io.github.nnazuna.rules.core.model.RuleDefinition
+import io.github.nnazuna.rules.core.trigger.NotificationTrigger
+import io.github.nnazuna.rules.data.RuleRepository
 import kotlinx.coroutines.launch
 
 data class RuleEditUiState(
@@ -57,23 +62,11 @@ class RuleEditViewModel(
     init {
         if (ruleId > 0) {
             viewModelScope.launch {
-                val rule = repository.getRule(ruleId)
-                uiState = if (rule == null) {
+                val definition = repository.getDefinition(ruleId)
+                uiState = if (definition == null) {
                     RuleEditUiState(isLoading = false)
                 } else {
-                    RuleEditUiState(
-                        id = rule.id,
-                        isLoading = false,
-                        packageName = rule.packageName,
-                        appLabel = rule.appLabel,
-                        keyword = rule.keyword.orEmpty(),
-                        action = rule.action,
-                        clipboardMode = rule.clipboardMode,
-                        extractionMode = rule.extractionMode,
-                        customRegex = rule.customRegex.orEmpty(),
-                        clearClipboardSeconds = rule.clearClipboardSeconds.toString(),
-                        enabled = rule.enabled,
-                    )
+                    definition.toUiState()
                 }
             }
         }
@@ -117,20 +110,7 @@ class RuleEditViewModel(
         val state = uiState
         if (!state.canSave) return
         viewModelScope.launch {
-            repository.save(
-                Rule(
-                    id = state.id,
-                    packageName = state.packageName,
-                    appLabel = state.appLabel,
-                    keyword = state.keyword.trim().ifBlank { null },
-                    action = state.action,
-                    clipboardMode = state.clipboardMode,
-                    extractionMode = state.extractionMode,
-                    customRegex = state.customRegex.trim().ifBlank { null },
-                    clearClipboardSeconds = state.clearClipboardValue,
-                    enabled = state.enabled,
-                ),
-            )
+            repository.save(state.toDefinition())
             onSaved()
         }
     }
@@ -139,7 +119,7 @@ class RuleEditViewModel(
         val state = uiState
         if (state.id == 0L) return
         viewModelScope.launch {
-            repository.getRule(state.id)?.let { repository.delete(it) }
+            repository.getDefinition(state.id)?.let { repository.delete(it) }
             onDeleted()
         }
     }
@@ -152,4 +132,54 @@ class RuleEditViewModel(
             }
         }
     }
+}
+
+fun RuleDefinition.toUiState(): RuleEditUiState {
+    val notification = trigger as? NotificationTrigger ?: return RuleEditUiState()
+    val primary = actions.firstOrNull() ?: return RuleEditUiState()
+    val actionType = when (primary) {
+        is NotifyAction -> ActionType.NOTIFY
+        is SoundAction -> ActionType.SOUND
+        is ClipboardAction -> ActionType.CLIPBOARD
+        else -> return RuleEditUiState()
+    }
+    val clipboard = primary as? ClipboardAction
+    return RuleEditUiState(
+        id = id,
+        isLoading = false,
+        packageName = notification.packageName,
+        appLabel = appLabel,
+        keyword = conditions.filterIsInstance<KeywordCondition>().firstOrNull()?.keyword.orEmpty(),
+        action = actionType,
+        clipboardMode = clipboard?.mode ?: ClipboardMode.FULL,
+        extractionMode = clipboard?.extractionMode ?: ExtractionMode.OTP,
+        customRegex = clipboard?.customRegex.orEmpty(),
+        clearClipboardSeconds = (clipboard?.clearClipboardSeconds ?: 0).toString(),
+        enabled = enabled,
+    )
+}
+
+fun RuleEditUiState.toDefinition(): RuleDefinition {
+    val actions = when (action) {
+        ActionType.NOTIFY -> listOf(NotifyAction)
+        ActionType.SOUND -> listOf(SoundAction)
+        ActionType.CLIPBOARD -> listOf(
+            ClipboardAction(
+                mode = clipboardMode,
+                extractionMode = extractionMode,
+                customRegex = customRegex.trim().ifBlank { null },
+                clearClipboardSeconds = clearClipboardValue,
+            ),
+        )
+    }
+    return RuleDefinition(
+        id = id,
+        appLabel = appLabel,
+        enabled = enabled,
+        createdAt = System.currentTimeMillis(),
+        trigger = NotificationTrigger(packageName),
+        conditions = keyword.trim().takeIf { it.isNotEmpty() }
+            ?.let { listOf(KeywordCondition(it)) } ?: emptyList(),
+        actions = actions,
+    )
 }
