@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.nnazuna.rules.NnaRulesApp
-import io.github.nnazuna.rules.data.Rule
+import io.github.nnazuna.rules.core.model.RuleDefinition
 import io.github.nnazuna.rules.data.RuleRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -14,19 +14,19 @@ import kotlinx.coroutines.launch
 
 class RuleListViewModel(private val repository: RuleRepository) : ViewModel() {
 
-    val rules = repository.observeRules()
+    val rules = repository.observeDefinitions()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList(),
+            initialValue = emptyList<RuleDefinition>(),
         )
 
-    fun setEnabled(rule: Rule, enabled: Boolean) {
-        viewModelScope.launch { repository.setEnabled(rule, enabled) }
+    fun setEnabled(definition: RuleDefinition, enabled: Boolean) {
+        viewModelScope.launch { repository.setEnabled(definition, enabled) }
     }
 
-    fun delete(rule: Rule) {
-        viewModelScope.launch { repository.delete(rule) }
+    fun delete(definition: RuleDefinition) {
+        viewModelScope.launch { repository.delete(definition) }
     }
 
     companion object {

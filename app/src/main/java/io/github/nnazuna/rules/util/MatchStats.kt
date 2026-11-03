@@ -1,6 +1,7 @@
 package io.github.nnazuna.rules.util
 
 import android.content.Context
+import io.github.nnazuna.rules.core.extraction.ClipboardOutcome
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class RuleMatchStat(
     val count: Int,
     val lastMatchedAt: Long?,
+    val clipboardOutcome: ClipboardOutcome? = null,
 ) {
     companion object {
         val Empty = RuleMatchStat(count = 0, lastMatchedAt = null)
@@ -18,11 +20,16 @@ object MatchStats {
     private const val PREFS_NAME = "nna_rules_match_stats"
     private const val KEY_COUNT_PREFIX = "count_"
     private const val KEY_LAST_PREFIX = "last_"
+    private const val KEY_CLIPBOARD_PREFIX = "clipboard_"
 
     private val _revision = MutableStateFlow(0L)
     val revision: StateFlow<Long> = _revision.asStateFlow()
 
-    fun record(context: Context, ruleIds: Collection<Long>) {
+    fun record(
+        context: Context,
+        ruleIds: Collection<Long>,
+        clipboardOutcomes: Map<Long, ClipboardOutcome?> = emptyMap(),
+    ) {
         if (ruleIds.isEmpty()) return
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
@@ -31,6 +38,13 @@ object MatchStats {
             val key = KEY_COUNT_PREFIX + ruleId
             editor.putInt(key, prefs.getInt(key, 0) + 1)
             editor.putLong(KEY_LAST_PREFIX + ruleId, now)
+            val clipboardKey = KEY_CLIPBOARD_PREFIX + ruleId
+            val outcome = clipboardOutcomes[ruleId]
+            if (outcome == null) {
+                editor.remove(clipboardKey)
+            } else {
+                editor.putString(clipboardKey, outcome.name)
+            }
         }
         editor.apply()
         _revision.value = now
@@ -40,6 +54,12 @@ object MatchStats {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val count = prefs.getInt(KEY_COUNT_PREFIX + ruleId, 0)
         val last = prefs.getLong(KEY_LAST_PREFIX + ruleId, 0L).takeIf { it > 0L }
-        return RuleMatchStat(count = count, lastMatchedAt = last)
+        val clipboardOutcome = prefs.getString(KEY_CLIPBOARD_PREFIX + ruleId, null)
+            ?.let { value -> runCatching { ClipboardOutcome.valueOf(value) }.getOrNull() }
+        return RuleMatchStat(
+            count = count,
+            lastMatchedAt = last,
+            clipboardOutcome = clipboardOutcome,
+        )
     }
 }

@@ -41,9 +41,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
-import io.github.nnazuna.rules.data.ActionType
-import io.github.nnazuna.rules.data.Rule
-import io.github.nnazuna.rules.ui.labelRes
+import io.github.nnazuna.rules.core.action.ClipboardAction
+import io.github.nnazuna.rules.core.action.NotifyAction
+import io.github.nnazuna.rules.core.action.SoundAction
+import io.github.nnazuna.rules.core.condition.KeywordCondition
+import io.github.nnazuna.rules.core.extraction.ClipboardMode
+import io.github.nnazuna.rules.core.extraction.ClipboardOutcome
+import io.github.nnazuna.rules.core.extraction.ExtractionMode
+import io.github.nnazuna.rules.core.model.RuleDefinition
+import io.github.nnazuna.rules.ui.ActionType
+import io.github.nnazuna.rules.ui.toActionType
 import io.github.nnazuna.rules.util.MatchStats
 import io.github.nnazuna.rules.util.RuleMatchStat
 import io.github.nnazuna.rules.util.hasNotificationAccess
@@ -61,8 +68,9 @@ fun RuleListScreen(
     val context = LocalContext.current
     val rules by viewModel.rules.collectAsState()
     val statsRevision by MatchStats.revision.collectAsState()
-    val stats = remember(rules, statsRevision) {
-        rules.associate { it.id to MatchStats.statFor(context, it.id) }
+    val rulesList = rules
+    val stats = remember(rulesList, statsRevision) {
+        rulesList.associate { it.id to MatchStats.statFor(context, it.id) }
     }
     var granted by remember { mutableStateOf(hasNotificationAccess(context)) }
     var notificationsEnabled by remember {
@@ -82,8 +90,8 @@ fun RuleListScreen(
         granted = hasNotificationAccess(context)
     }
 
-    val needsNotifications = rules.any {
-        it.action == ActionType.NOTIFY || it.action == ActionType.SOUND
+    val needsNotifications = rules.any { rule ->
+        rule.actions.any { it is NotifyAction || it is SoundAction }
     }
 
     Scaffold(
@@ -212,12 +220,17 @@ fun RuleListScreen(
 
 @Composable
 private fun RuleCard(
-    rule: Rule,
+    rule: RuleDefinition,
     stat: RuleMatchStat,
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val keyword = rule.conditions.filterIsInstance<KeywordCondition>().firstOrNull()?.keyword
+    val primaryAction = rule.actions.firstOrNull()
+    val actionType = primaryAction?.toActionType()
+    val clipboardAction = primaryAction as? ClipboardAction
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -239,18 +252,33 @@ private fun RuleCard(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = rule.keyword
+                    text = keyword
                         ?.takeIf { it.isNotBlank() }
                         ?.let { stringResource(R.string.rule_keyword_summary, it) }
                         ?: stringResource(R.string.rule_any_notification),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = stringResource(rule.action.labelRes()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                if (actionType != null) {
+                    Text(
+                        text = stringResource(actionType.labelRes()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                if (clipboardAction != null && clipboardAction.mode == ClipboardMode.EXTRACTED) {
+                    Text(
+                        text = stringResource(
+                            if (clipboardAction.extractionMode == ExtractionMode.CUSTOM_REGEX) {
+                                R.string.rule_extract_custom_summary
+                            } else {
+                                R.string.rule_extract_otp_summary
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 val lastMatchedAt = stat.lastMatchedAt
                 if (stat.count > 0 && lastMatchedAt != null) {
                     Text(
@@ -263,6 +291,26 @@ private fun RuleCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                if (clipboardAction != null) {
+                    stat.clipboardOutcome?.let { outcome ->
+                        Text(
+                            text = stringResource(
+                                when (outcome) {
+                                    ClipboardOutcome.EXTRACTED ->
+                                        R.string.rules_last_copy_extracted
+                                    ClipboardOutcome.FULL ->
+                                        R.string.rules_last_copy_full
+                                    ClipboardOutcome.FALLBACK_NO_MATCH ->
+                                        R.string.rules_last_copy_no_match
+                                    ClipboardOutcome.FALLBACK_INVALID_PATTERN ->
+                                        R.string.rules_last_copy_invalid
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             Switch(

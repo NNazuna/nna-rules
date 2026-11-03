@@ -6,7 +6,9 @@ import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import io.github.nnazuna.rules.NnaRulesApp
-import io.github.nnazuna.rules.action.ActionExecutor
+import io.github.nnazuna.rules.action.AndroidActionContext
+import io.github.nnazuna.rules.core.engine.RuleEngine
+import io.github.nnazuna.rules.core.event.NotificationEvent
 import io.github.nnazuna.rules.util.CapturedNotification
 import io.github.nnazuna.rules.util.LastNotificationStore
 import io.github.nnazuna.rules.util.MatchStats
@@ -16,6 +18,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+data class NotificationContent(
+    val title: String,
+    val text: String,
+) {
+    val searchableText: String
+        get() = buildList {
+            if (title.isNotBlank()) add(title)
+            if (text.isNotBlank()) add(text)
+        }.joinToString("\n")
+}
 
 class NnaRulesNotificationListener : NotificationListenerService() {
 
@@ -30,28 +43,40 @@ class NnaRulesNotificationListener : NotificationListenerService() {
         val content = extractContent(notification) ?: return
         if (!shouldProcess(notification.key, content)) return
 
+        val appLabel = resolveAppLabel(notification.packageName)
         val captured = CapturedNotification(
             packageName = notification.packageName,
-            appLabel = resolveAppLabel(notification.packageName),
+            appLabel = appLabel,
             text = content.searchableText,
         )
         LastNotificationStore.save(this, captured)
 
         val repository = (application as NnaRulesApp).ruleRepository
         scope.launch {
-            val matches = repository.getEnabledRules()
-                .filter { RuleMatcher.matches(it, notification.packageName, content) }
-            if (matches.isNotEmpty()) {
-                withContext(Dispatchers.Main.immediate) {
-                    matches.forEach { rule ->
-                        ActionExecutor.execute(
-                            this@NnaRulesNotificationListener,
-                            rule,
-                            content,
-                        )
+            val definitions = repository.getEnabledDefinitions()
+            val event = NotificationEvent(
+                packageName = notification.packageName,
+                appLabel = appLabel,
+                title = content.title,
+                text = content.text,
+            )
+            val executions = RuleEngine().evaluate(definitions, event)
+            if (executions.isNotEmpty()) {
+                val clipboardOutcomes = withContext(Dispatchers.Main.immediate) {
+                    val actionContext = AndroidActionContext(this@NnaRulesNotificationListener)
+                    executions.associate { execution ->
+                        val reports = execution.rule.actions.map { action ->
+                            action.execute(execution.event, execution.rule, actionContext)
+                        }
+                        val outcome = reports.mapNotNull { it.clipboardOutcome }.firstOrNull()
+                        execution.rule.id to outcome
                     }
                 }
-                MatchStats.record(this@NnaRulesNotificationListener, matches.map { it.id })
+                MatchStats.record(
+                    this@NnaRulesNotificationListener,
+                    executions.map { it.rule.id },
+                    clipboardOutcomes,
+                )
             }
         }
     }

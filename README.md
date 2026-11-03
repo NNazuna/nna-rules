@@ -11,7 +11,10 @@ notification matches.
 - **Actions**:
   - show a custom notification with the original text,
   - play a sound through a notification channel,
-  - copy the notification text to the clipboard.
+  - copy the notification text to the clipboard, either in full or after
+    extracting a code (OTP preset or custom regex).
+- Clipboard rules can mark copied clips as sensitive on Android 13+ and
+  optionally clear the clipboard after a delay.
 - Rules can be enabled or disabled without deleting them.
 - Each rule card shows how many times it matched and when it last matched.
 - Dark theme support, including Android 12+ dynamic color.
@@ -24,7 +27,8 @@ notification matches.
    where access is granted.
 2. **Rules** lists saved rules as cards with an enable switch.
 3. **Add / Edit rule** picks a trigger app, an optional keyword, an action, and
-   whether the rule is enabled.
+   whether the rule is enabled. Clipboard rules also get extraction settings and
+   a sample-text preview.
 
 ## How it works
 
@@ -35,6 +39,14 @@ matched, and the selected action runs.
 
 To avoid loops, notifications posted by NNA Rules are ignored. Repeated updates
 of the same notification are debounced.
+
+For clipboard rules, the copied text can be reduced to a code first. The OTP
+preset takes the first standalone 4–8 character code that contains a digit.
+A custom regular expression uses its first capture group, or the whole match
+when the pattern has no group. If no code is found, the full text is copied.
+The edit screen previews the result before saving. Copied clips are flagged as
+sensitive on Android 13+, and a per-rule timer can clear the clipboard after a
+delay.
 
 ## Permissions
 
@@ -66,6 +78,11 @@ running Android 7.0 (API 24) or newer, or use:
   volume and Do Not Disturb rules apply.
 - Notification access is revoked when the app is uninstalled and must be granted
   again after reinstalling.
+- Clipboard clear timers stop if the app process is killed. Android blocks
+  clipboard reads in the background, so a scheduled clear is unconditional and
+  may also clear something copied later.
+- Custom regular expressions run without a timeout on notification text.
+- The OTP preset only recognizes ASCII letters and digits.
 
 ## Privacy
 
