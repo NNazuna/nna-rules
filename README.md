@@ -9,7 +9,7 @@ Everything stays on the device. The app has no internet permission.
 
 ## Status
 
-Milestone 0: project skeleton.
+Milestones 0-1: project skeleton, first-launch screen, notification access check.
 
 ## Build
 

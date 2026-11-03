@@ -1,5 +1,20 @@
 <resources>
     <string name="app_name">NNA Rules</string>
-    <string name="m0_title">NNA Rules</string>
-    <string name="m0_subtitle">App skeleton is up and running.</string>
+
+    <string name="onboarding_tagline">Turn notifications into actions.</string>
+    <string name="onboarding_explanation">NNA Rules watches notifications from apps you choose. When a notification matches one of your rules, the app can show a custom notification, play a sound, or copy the notification text. Everything stays on this device.</string>
+    <string name="onboarding_access_label">Notification access</string>
+    <string name="onboarding_access_granted">Granted</string>
+    <string name="onboarding_access_not_granted">Not granted</string>
+    <string name="onboarding_open_settings">Open notification access settings</string>
+    <string name="onboarding_manage_access">Manage notification access</string>
+    <string name="onboarding_settings_hint">On the next screen, find NNA Rules and turn on access. Come back here when you are done.</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_skip">Skip for now</string>
+
+    <string name="rules_title">Rules</string>
+    <string name="rules_access_warning">Notification access is off, so rules cannot run.</string>
+    <string name="rules_open_settings">Open settings</string>
+    <string name="rules_empty_title">No rules yet</string>
+    <string name="rules_empty_body">Rules you create will appear here.</string>
 </resources>
