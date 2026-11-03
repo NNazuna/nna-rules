@@ -7,16 +7,31 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.PersistableBundle
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.core.action.ActionContext
+import io.github.nnazuna.rules.data.NotificationQueueDao
+import io.github.nnazuna.rules.data.QueuedNotification
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
-class AndroidActionContext(private val context: Context) : ActionContext {
+class AndroidActionContext(
+    private val context: Context,
+    private val queueDao: NotificationQueueDao? = null,
+) : ActionContext {
     override fun postNotification(appLabel: String, text: String, withSound: Boolean) {
         ensureChannels()
         val channelId = if (withSound) CHANNEL_SOUND else CHANNEL_SILENT
@@ -52,6 +67,87 @@ class AndroidActionContext(private val context: Context) : ActionContext {
         markSensitive(clip)
         clipboard.setPrimaryClip(clip)
         ClipboardClearScheduler.schedule(context, clearAfterSeconds)
+    }
+
+    override fun setVolume(level: Int, streamType: String) {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val stream = when (streamType.uppercase()) {
+            "MUSIC" -> AudioManager.STREAM_MUSIC
+            "ALARM" -> AudioManager.STREAM_ALARM
+            "NOTIFICATION" -> AudioManager.STREAM_NOTIFICATION
+            else -> AudioManager.STREAM_RING
+        }
+        val max = audioManager.getStreamMaxVolume(stream)
+        val target = (level.coerceIn(0, 100) * max / 100f).toInt()
+        try {
+            audioManager.setStreamVolume(stream, target, 0)
+        } catch (_: SecurityException) {
+        }
+    }
+
+    override fun setBrightness(level: Int) {
+        try {
+            val brightness = level.coerceIn(0, 255)
+            Settings.System.putInt(
+                context.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS,
+                brightness,
+            )
+        } catch (_: Exception) {
+        }
+    }
+
+    override fun setDndMode(mode: String) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        try {
+            val filter = when (mode.uppercase()) {
+                "PRIORITY" -> NotificationManager.INTERRUPTION_FILTER_PRIORITY
+                "SILENT" -> NotificationManager.INTERRUPTION_FILTER_NONE
+                "ALARMS" -> NotificationManager.INTERRUPTION_FILTER_ALARMS
+                else -> NotificationManager.INTERRUPTION_FILTER_ALL
+            }
+            if (manager.isNotificationPolicyAccessGranted) {
+                manager.setInterruptionFilter(filter)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    override fun appendToCsv(filePath: String, columns: List<String>, value: String) {
+        val file = File(filePath)
+        val dir = file.parentFile
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs()
+        }
+        try {
+            val writer = FileWriter(file, true)
+            val date = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            val row = if (columns.isEmpty()) {
+                "$date,$value\n"
+            } else {
+                val values = mutableListOf(date)
+                values.addAll(columns.map { if (it == "amount") value else "" })
+                values.joinToString(",") + "\n"
+            }
+            writer.write(row)
+            writer.close()
+        } catch (_: Exception) {
+        }
+    }
+
+    override fun queueNotification(ruleId: Long, packageName: String, appLabel: String, text: String) {
+        queueDao?.let {
+            CoroutineScope(Dispatchers.IO).launch {
+                it.insert(
+                    QueuedNotification(
+                        ruleId = ruleId,
+                        packageName = packageName,
+                        appLabel = appLabel,
+                        text = text,
+                    ),
+                )
+            }
+        }
     }
 
     private fun markSensitive(clip: ClipData) {
