@@ -1,4 +1,4 @@
-package io.github.nnazuna.rules.extraction
+package io.github.nnazuna.rules.core.extraction
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

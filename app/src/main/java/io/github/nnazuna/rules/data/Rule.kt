@@ -3,8 +3,8 @@ package io.github.nnazuna.rules.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import io.github.nnazuna.rules.extraction.ClipboardMode
-import io.github.nnazuna.rules.extraction.ExtractionMode
+import io.github.nnazuna.rules.core.extraction.ClipboardMode
+import io.github.nnazuna.rules.core.extraction.ExtractionMode
 
 enum class ActionType {
     NOTIFY,

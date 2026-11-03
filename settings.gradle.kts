@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "NNA Rules"
 include(":app")
+include(":core")

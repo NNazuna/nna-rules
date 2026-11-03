@@ -47,10 +47,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.data.ActionType
-import io.github.nnazuna.rules.extraction.ClipboardMode
-import io.github.nnazuna.rules.extraction.ClipboardOutcome
-import io.github.nnazuna.rules.extraction.ExtractionMode
-import io.github.nnazuna.rules.extraction.TextExtractor
+import io.github.nnazuna.rules.core.extraction.ClipboardMode
+import io.github.nnazuna.rules.core.extraction.ClipboardOutcome
+import io.github.nnazuna.rules.core.extraction.ExtractionMode
+import io.github.nnazuna.rules.core.extraction.TextExtractor
 import io.github.nnazuna.rules.ui.descriptionRes
 import io.github.nnazuna.rules.ui.labelRes
 import io.github.nnazuna.rules.util.AppInfo

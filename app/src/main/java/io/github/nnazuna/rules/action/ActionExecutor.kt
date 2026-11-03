@@ -15,8 +15,8 @@ import androidx.core.app.NotificationManagerCompat
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.data.ActionType
 import io.github.nnazuna.rules.data.Rule
-import io.github.nnazuna.rules.extraction.ClipboardOutcome
-import io.github.nnazuna.rules.extraction.TextExtractor
+import io.github.nnazuna.rules.core.extraction.ClipboardOutcome
+import io.github.nnazuna.rules.core.extraction.TextExtractor
 import io.github.nnazuna.rules.service.NotificationContent
 import java.util.concurrent.atomic.AtomicInteger
 

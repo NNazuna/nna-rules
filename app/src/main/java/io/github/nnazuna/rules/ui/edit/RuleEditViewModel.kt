@@ -12,9 +12,9 @@ import io.github.nnazuna.rules.NnaRulesApp
 import io.github.nnazuna.rules.data.ActionType
 import io.github.nnazuna.rules.data.Rule
 import io.github.nnazuna.rules.data.RuleRepository
-import io.github.nnazuna.rules.extraction.ClipboardMode
-import io.github.nnazuna.rules.extraction.ExtractionMode
-import io.github.nnazuna.rules.extraction.TextExtractor
+import io.github.nnazuna.rules.core.extraction.ClipboardMode
+import io.github.nnazuna.rules.core.extraction.ExtractionMode
+import io.github.nnazuna.rules.core.extraction.TextExtractor
 import kotlinx.coroutines.launch
 
 data class RuleEditUiState(

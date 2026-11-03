@@ -1,8 +1,8 @@
 package io.github.nnazuna.rules.data
 
 import androidx.room.TypeConverter
-import io.github.nnazuna.rules.extraction.ClipboardMode
-import io.github.nnazuna.rules.extraction.ExtractionMode
+import io.github.nnazuna.rules.core.extraction.ClipboardMode
+import io.github.nnazuna.rules.core.extraction.ExtractionMode
 
 class Converters {
     @TypeConverter

@@ -1,7 +1,7 @@
 package io.github.nnazuna.rules.util
 
 import android.content.Context
-import io.github.nnazuna.rules.extraction.ClipboardOutcome
+import io.github.nnazuna.rules.core.extraction.ClipboardOutcome
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
