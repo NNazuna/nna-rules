@@ -5,10 +5,18 @@ import io.github.nnazuna.rules.core.action.NotifyActionPlugin
 import io.github.nnazuna.rules.core.action.SoundActionPlugin
 import io.github.nnazuna.rules.core.condition.KeywordCondition
 import io.github.nnazuna.rules.core.trigger.NotificationTrigger
+import io.github.nnazuna.rules.core.trigger.PowerTrigger
+import io.github.nnazuna.rules.core.trigger.TimeTrigger
+import io.github.nnazuna.rules.core.trigger.WifiTrigger
 
 object RulePlugins {
     val registry: PluginRegistry = PluginRegistry(
-        triggers = listOf(NotificationTrigger.Companion),
+        triggers = listOf(
+            NotificationTrigger.Companion,
+            TimeTrigger.Companion,
+            WifiTrigger.Companion,
+            PowerTrigger.Companion,
+        ),
         conditions = listOf(KeywordCondition.Companion),
         actions = listOf(
             NotifyActionPlugin,

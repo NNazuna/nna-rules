@@ -100,7 +100,7 @@ class RuleCodecTest {
                 trigger = NotificationTrigger("com.chat"),
                 actions = listOf(NotifyAction),
             ),
-        ).copy(triggerType = "TIME")
+        ).copy(triggerType = "UNKNOWN_TRIGGER")
 
         assertNull(decode(payload))
     }
