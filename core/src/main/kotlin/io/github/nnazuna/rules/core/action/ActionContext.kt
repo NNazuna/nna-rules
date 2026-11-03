@@ -12,4 +12,6 @@ interface ActionContext {
     fun setDndMode(mode: String)
 
     fun appendToCsv(filePath: String, columns: List<String>, value: String)
+
+    fun queueNotification(ruleId: Long, packageName: String, appLabel: String, text: String)
 }

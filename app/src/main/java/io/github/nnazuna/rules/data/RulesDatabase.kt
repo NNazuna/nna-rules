@@ -5,9 +5,10 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [RuleEntity::class], version = 3, exportSchema = true)
+@Database(entities = [RuleEntity::class, QueuedNotification::class], version = 4, exportSchema = true)
 abstract class RulesDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
+    abstract fun notificationQueueDao(): NotificationQueueDao
 
     companion object {
         @Volatile
@@ -20,7 +21,7 @@ abstract class RulesDatabase : RoomDatabase() {
                     RulesDatabase::class.java,
                     "nna_rules.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { instance = it }
             }

@@ -16,6 +16,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.core.action.ActionContext
+import io.github.nnazuna.rules.data.NotificationQueueDao
+import io.github.nnazuna.rules.data.QueuedNotification
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -23,7 +28,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
-class AndroidActionContext(private val context: Context) : ActionContext {
+class AndroidActionContext(
+    private val context: Context,
+    private val queueDao: NotificationQueueDao? = null,
+) : ActionContext {
     override fun postNotification(appLabel: String, text: String, withSound: Boolean) {
         ensureChannels()
         val channelId = if (withSound) CHANNEL_SOUND else CHANNEL_SILENT
@@ -124,6 +132,21 @@ class AndroidActionContext(private val context: Context) : ActionContext {
             writer.write(row)
             writer.close()
         } catch (_: Exception) {
+        }
+    }
+
+    override fun queueNotification(ruleId: Long, packageName: String, appLabel: String, text: String) {
+        queueDao?.let {
+            CoroutineScope(Dispatchers.IO).launch {
+                it.insert(
+                    QueuedNotification(
+                        ruleId = ruleId,
+                        packageName = packageName,
+                        appLabel = appLabel,
+                        text = text,
+                    ),
+                )
+            }
         }
     }
 

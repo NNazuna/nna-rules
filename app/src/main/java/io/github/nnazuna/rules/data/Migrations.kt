@@ -74,6 +74,21 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `notification_queue` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`rule_id` INTEGER NOT NULL, " +
+                "`package_name` TEXT NOT NULL, " +
+                "`app_label` TEXT NOT NULL, " +
+                "`text` TEXT NOT NULL, " +
+                "`queued_at` INTEGER NOT NULL" +
+                ")",
+        )
+    }
+}
+
 private fun android.database.Cursor.getStringOrNull(index: Int): String? =
     if (isNull(index)) null else getString(index)
 

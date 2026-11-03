@@ -63,7 +63,8 @@ class NnaRulesNotificationListener : NotificationListenerService() {
             val executions = RuleEngine().evaluate(definitions, event)
             if (executions.isNotEmpty()) {
                 val clipboardOutcomes = withContext(Dispatchers.Main.immediate) {
-                    val actionContext = AndroidActionContext(this@NnaRulesNotificationListener)
+                    val queueDao = io.github.nnazuna.rules.data.RulesDatabase.getInstance(this@NnaRulesNotificationListener).notificationQueueDao()
+                    val actionContext = AndroidActionContext(this@NnaRulesNotificationListener, queueDao)
                     executions.associate { execution ->
                         val reports = execution.rule.actions.map { action ->
                             action.execute(execution.event, execution.rule, actionContext)
