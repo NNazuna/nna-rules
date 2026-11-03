@@ -10,4 +10,6 @@ interface ActionContext {
     fun setBrightness(level: Int)
 
     fun setDndMode(mode: String)
+
+    fun appendToCsv(filePath: String, columns: List<String>, value: String)
 }

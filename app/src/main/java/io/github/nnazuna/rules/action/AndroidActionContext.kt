@@ -16,6 +16,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.core.action.ActionContext
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
 class AndroidActionContext(private val context: Context) : ActionContext {
@@ -96,6 +101,28 @@ class AndroidActionContext(private val context: Context) : ActionContext {
             if (manager.isNotificationPolicyAccessGranted) {
                 manager.setInterruptionFilter(filter)
             }
+        } catch (_: Exception) {
+        }
+    }
+
+    override fun appendToCsv(filePath: String, columns: List<String>, value: String) {
+        val file = File(filePath)
+        val dir = file.parentFile
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs()
+        }
+        try {
+            val writer = FileWriter(file, true)
+            val date = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            val row = if (columns.isEmpty()) {
+                "$date,$value\n"
+            } else {
+                val values = mutableListOf(date)
+                values.addAll(columns.map { if (it == "amount") value else "" })
+                values.joinToString(",") + "\n"
+            }
+            writer.write(row)
+            writer.close()
         } catch (_: Exception) {
         }
     }

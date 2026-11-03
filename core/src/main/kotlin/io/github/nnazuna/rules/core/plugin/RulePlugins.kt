@@ -2,6 +2,7 @@ package io.github.nnazuna.rules.core.plugin
 
 import io.github.nnazuna.rules.core.action.BrightnessAction
 import io.github.nnazuna.rules.core.action.ClipboardAction
+import io.github.nnazuna.rules.core.action.CsvAppendAction
 import io.github.nnazuna.rules.core.action.DndAction
 import io.github.nnazuna.rules.core.action.NotifyActionPlugin
 import io.github.nnazuna.rules.core.action.SoundActionPlugin
@@ -28,6 +29,7 @@ object RulePlugins {
             VolumeAction.Companion,
             BrightnessAction.Companion,
             DndAction.Companion,
+            CsvAppendAction.Companion,
         ),
     )
 }
