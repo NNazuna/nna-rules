@@ -16,6 +16,9 @@ class RuleRepository(
 
     suspend fun getEnabledRules(): List<Rule> = dao.getEnabled().mapNotNull { it.toLegacyRule() }
 
+    suspend fun getEnabledDefinitions(): List<io.github.nnazuna.rules.core.model.RuleDefinition> =
+        dao.getEnabled().mapNotNull { it.toDefinition(codec) }
+
     suspend fun getRule(id: Long): Rule? = dao.getById(id)?.toLegacyRule()
 
     suspend fun save(rule: Rule): Long =
