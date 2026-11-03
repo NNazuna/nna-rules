@@ -4,4 +4,10 @@ interface ActionContext {
     fun postNotification(appLabel: String, text: String, withSound: Boolean)
 
     fun copyToClipboard(text: String, clearAfterSeconds: Int)
+
+    fun setVolume(level: Int, streamType: String)
+
+    fun setBrightness(level: Int)
+
+    fun setDndMode(mode: String)
 }
