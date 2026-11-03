@@ -42,16 +42,20 @@ class NnaRulesNotificationListener : NotificationListenerService() {
             val matches = repository.getEnabledRules()
                 .filter { RuleMatcher.matches(it, notification.packageName, content) }
             if (matches.isNotEmpty()) {
-                withContext(Dispatchers.Main.immediate) {
-                    matches.forEach { rule ->
-                        ActionExecutor.execute(
+                val clipboardOutcomes = withContext(Dispatchers.Main.immediate) {
+                    matches.associate { rule ->
+                        rule.id to ActionExecutor.execute(
                             this@NnaRulesNotificationListener,
                             rule,
                             content,
                         )
                     }
                 }
-                MatchStats.record(this@NnaRulesNotificationListener, matches.map { it.id })
+                MatchStats.record(
+                    this@NnaRulesNotificationListener,
+                    matches.map { it.id },
+                    clipboardOutcomes,
+                )
             }
         }
     }

@@ -3,16 +3,20 @@ package io.github.nnazuna.rules.action
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.PersistableBundle
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.nnazuna.rules.R
 import io.github.nnazuna.rules.data.ActionType
 import io.github.nnazuna.rules.data.Rule
+import io.github.nnazuna.rules.extraction.ClipboardOutcome
+import io.github.nnazuna.rules.extraction.TextExtractor
 import io.github.nnazuna.rules.service.NotificationContent
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -21,13 +25,18 @@ object ActionExecutor {
     private const val CHANNEL_SOUND = "rule_alerts"
     private val notificationIds = AtomicInteger(1000)
 
-    fun execute(context: Context, rule: Rule, content: NotificationContent) {
+    fun execute(context: Context, rule: Rule, content: NotificationContent): ClipboardOutcome? =
         when (rule.action) {
-            ActionType.NOTIFY -> postNotification(context, rule, content, withSound = false)
-            ActionType.SOUND -> postNotification(context, rule, content, withSound = true)
-            ActionType.CLIPBOARD -> copyToClipboard(context, content)
+            ActionType.NOTIFY -> {
+                postNotification(context, rule, content, withSound = false)
+                null
+            }
+            ActionType.SOUND -> {
+                postNotification(context, rule, content, withSound = true)
+                null
+            }
+            ActionType.CLIPBOARD -> copyToClipboard(context, rule, content)
         }
-    }
 
     private fun postNotification(
         context: Context,
@@ -66,14 +75,35 @@ object ActionExecutor {
         }
     }
 
-    private fun copyToClipboard(context: Context, content: NotificationContent) {
-        val text = content.searchableText
-        if (text.isBlank()) return
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            ?: return
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(context.getString(R.string.app_name), text),
+    private fun copyToClipboard(
+        context: Context,
+        rule: Rule,
+        content: NotificationContent,
+    ): ClipboardOutcome? {
+        val resolved = TextExtractor.resolveForClipboard(
+            text = content.searchableText,
+            mode = rule.clipboardMode,
+            extractionMode = rule.extractionMode,
+            customRegex = rule.customRegex,
         )
+        if (resolved.text.isBlank()) return null
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            ?: return null
+        val clip = ClipData.newPlainText(
+            context.getString(R.string.app_name),
+            resolved.text,
+        )
+        markSensitive(clip)
+        clipboard.setPrimaryClip(clip)
+        ClipboardClearScheduler.schedule(context, rule.clearClipboardSeconds)
+        return resolved.outcome
+    }
+
+    private fun markSensitive(clip: ClipData) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        clip.description.extras = PersistableBundle().apply {
+            putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+        }
     }
 
     private fun ensureChannels(context: Context) {
